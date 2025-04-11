@@ -1,0 +1,98 @@
+.app-loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #333;
+}
+
+.main-content {
+  min-height: calc(100vh - 160px); /* 100vh - header - footer */
+  padding: 30px 0;
+}
+
+/* Form styles */
+.form-container {
+  max-width: 500px;
+  margin: 0 auto;
+  padding: 20px;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+/* Button styles */
+.btn-primary {
+  background-color: #4a6eb5;
+  border-color: #4a6eb5;
+}
+
+.btn-primary:hover,
+.btn-primary:focus {
+  background-color: #3e5d9c;
+  border-color: #3e5d9c;
+}
+
+/* Card styles */
+.card {
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+}
+
+/* Art picture detail page */
+.art-picture-detail {
+  margin-top: 30px;
+}
+
+.art-picture-image {
+  max-width: 100%;
+  height: auto;
+  border-radius: 5px;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+}
+
+/* Cart and checkout pages */
+.cart-item {
+  margin-bottom: 15px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid #eee;
+}
+
+.cart-summary {
+  background-color: #f9f9f9;
+  padding: 20px;
+  border-radius: 5px;
+}
+
+/* Messages page */
+.message-item {
+  padding: 15px;
+  margin-bottom: 10px;
+  border-radius: 5px;
+  background-color: #f9f9f9;
+  border-left: 4px solid #4a6eb5;
+}
+
+.message-item.unread {
+  background-color: #e7f3ff;
+  border-left-color: #007bff;
+}
+
+/* Admin pages */
+.admin-dashboard-card {
+  height: 100%;
+  text-align: center;
+  padding: 20px;
+}
+
+.admin-dashboard-card i {
+  font-size: 2rem;
+  margin-bottom: 10px;
+  color: #4a6eb5;
+} 
