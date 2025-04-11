@@ -22,9 +22,25 @@ class UserSerializer(serializers.ModelSerializer):
 
 class ArtPictureSerializer(serializers.ModelSerializer):
     """Serializer for ArtPicture model"""
+    image_full_url = serializers.SerializerMethodField()
+    
     class Meta:
         model = ArtPicture
-        fields = ['id', 'title', 'description', 'price', 'image', 'created_at', 'updated_at', 'is_available']
+        fields = ['id', 'title', 'description', 'price', 'image', 'image_url', 'image_full_url', 'created_at', 'updated_at', 'is_available']
+    
+    def get_image_full_url(self, obj):
+        """Get the full image URL, either from the uploaded file or external URL"""
+        request = self.context.get('request')
+        
+        if obj.image and hasattr(obj.image, 'url'):
+            if request:
+                return request.build_absolute_uri(obj.image.url)
+            return obj.image.url
+        elif obj.image_url:
+            return obj.image_url
+        
+        # Return a placeholder image URL if no image is available
+        return "https://via.placeholder.com/800x600?text=No+Image+Available"
 
 class CartItemSerializer(serializers.ModelSerializer):
     """Serializer for CartItem model"""

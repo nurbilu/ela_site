@@ -8,7 +8,8 @@ class ArtPicture(models.Model):
     title = models.CharField(max_length=200)
     description = models.TextField()
     price = models.DecimalField(max_digits=10, decimal_places=2)
-    image = models.ImageField(upload_to='art_pictures/')
+    image = models.ImageField(upload_to='art_pictures/', null=True, blank=True)
+    image_url = models.URLField(blank=True, null=True, help_text="URL to the image if no file is uploaded")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     is_available = models.BooleanField(default=True)
@@ -18,6 +19,15 @@ class ArtPicture(models.Model):
     
     class Meta:
         ordering = ['-created_at']
+        
+    @property
+    def get_image_url(self):
+        """Get the image URL, whether from uploaded file or external URL"""
+        if self.image and hasattr(self.image, 'url'):
+            return self.image.url
+        elif self.image_url:
+            return self.image_url
+        return None
 
 class Cart(models.Model):
     """Model for shopping cart"""
@@ -102,6 +112,7 @@ class Message(models.Model):
     TYPE_CHOICES = (
         ('admin_to_user', 'Admin to User'),
         ('admin_to_all', 'Admin to All Users'),
+        ('user_to_admin', 'User to Admin'),
     )
     
     sender = models.ForeignKey(User, on_delete=models.CASCADE, related_name='sent_messages')
@@ -115,6 +126,8 @@ class Message(models.Model):
     def __str__(self):
         if self.message_type == 'admin_to_all':
             return f"Public message: {self.subject}"
+        elif self.message_type == 'user_to_admin':
+            return f"Message from {self.sender.username} to Admin: {self.subject}"
         return f"Message from {self.sender.username} to {self.recipient.username}: {self.subject}"
     
     class Meta:

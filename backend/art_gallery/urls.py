@@ -8,6 +8,6 @@ urlpatterns = [
     path('api/', include('art_gallery.api.urls')),
 ]
 
-# Serve media files in development
-if settings.DEBUG:
+# Add media serving for development
+if settings.DEBUG and getattr(settings, 'MEDIA_SERVING', False):
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT) 

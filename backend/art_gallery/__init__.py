@@ -1,1 +1,3 @@
-# This file is intentionally left empty to mark this directory as a Python package. 
+# This file is required to make the directory a Python package
+import pymysql
+pymysql.install_as_MySQLdb() 

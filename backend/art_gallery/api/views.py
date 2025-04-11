@@ -34,7 +34,7 @@ class UserViewSet(viewsets.ModelViewSet):
     serializer_class = UserSerializer
     
     def get_permissions(self):
-        if self.action == 'create':
+        if self.action == 'create' or self.action == 'me':
             return [AllowAny()]
         elif self.action in ['update', 'partial_update', 'destroy']:
             return [IsAuthenticated()]
@@ -43,7 +43,18 @@ class UserViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         if self.request.user.is_staff:
             return User.objects.all()
-        return User.objects.filter(id=self.request.user.id)
+        if self.request.user.is_authenticated:
+            return User.objects.filter(id=self.request.user.id)
+        return User.objects.none()
+    
+    @action(detail=False, methods=['get'])
+    def me(self, request):
+        """Get the current user's profile"""
+        if not request.user.is_authenticated:
+            return Response({"detail": "Not authenticated"}, status=status.HTTP_401_UNAUTHORIZED)
+        
+        serializer = self.get_serializer(request.user)
+        return Response(serializer.data)
 
 class ArtPictureViewSet(viewsets.ModelViewSet):
     """API endpoint for art pictures"""
@@ -51,11 +62,23 @@ class ArtPictureViewSet(viewsets.ModelViewSet):
     serializer_class = ArtPictureSerializer
     permission_classes = [IsAdminOrReadOnly]
     
+    def get_permissions(self):
+        """Allow unauthenticated access to list and retrieve"""
+        if self.action in ['list', 'retrieve']:
+            return [AllowAny()]
+        return [IsAdminOrReadOnly()]
+    
     def get_queryset(self):
         queryset = ArtPicture.objects.all()
         if not self.request.user.is_staff:
             queryset = queryset.filter(is_available=True)
         return queryset
+    
+    def get_serializer_context(self):
+        """Add request to serializer context for proper image URL generation"""
+        context = super().get_serializer_context()
+        context['request'] = self.request
+        return context
 
 class CartViewSet(viewsets.ModelViewSet):
     """API endpoint for shopping carts"""
@@ -284,19 +307,24 @@ class MessageViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         user = self.request.user
         if user.is_staff:
-            # Admin can see all messages they sent and all public messages
+            # Admin can see all messages they sent, all public messages, and all user-to-admin messages
             return Message.objects.filter(
                 sender=user
             ) | Message.objects.filter(
                 message_type='admin_to_all'
+            ) | Message.objects.filter(
+                message_type='user_to_admin'
             )
         else:
-            # Regular users can see messages sent to them and public messages
+            # Regular users can see messages sent to them, public messages, and their own messages to admin
             return Message.objects.filter(
                 recipient=user, 
                 message_type='admin_to_user'
             ) | Message.objects.filter(
                 message_type='admin_to_all'
+            ) | Message.objects.filter(
+                sender=user,
+                message_type='user_to_admin'
             )
     
     def perform_create(self, serializer):
@@ -333,40 +361,44 @@ class MessageViewSet(viewsets.ModelViewSet):
     
     @action(detail=False, methods=['post'])
     def send_user_message(self, request):
-        """Send a message to a specific user (admin only)"""
-        if not request.user.is_staff:
+        """Send a message from a user to admin"""
+        if request.user.is_staff:
             return Response(
-                {'error': 'Only admin can send user messages'},
-                status=status.HTTP_403_FORBIDDEN
-            )
-        
-        recipient_id = request.data.get('recipient_id')
-        subject = request.data.get('subject')
-        content = request.data.get('content')
-        
-        if not all([recipient_id, subject, content]):
-            return Response(
-                {'error': 'Recipient ID, subject, and content are required'},
+                {'error': 'Admins should use send_public_message or the regular API for targeted messages'},
                 status=status.HTTP_400_BAD_REQUEST
             )
         
+        content = request.data.get('content')
+        
+        if not content:
+            return Response(
+                {'error': 'Content is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Find an admin to send the message to
         try:
-            recipient = User.objects.get(pk=recipient_id)
-            
+            admin = User.objects.filter(is_staff=True).first()
+            if not admin:
+                return Response(
+                    {'error': 'No admin found to send message to'},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+                
             message = Message.objects.create(
                 sender=request.user,
-                recipient=recipient,
-                subject=subject,
+                recipient=admin,
+                subject=f"Message from {request.user.username}",
                 content=content,
-                message_type='admin_to_user'
+                message_type='user_to_admin'
             )
             
             serializer = MessageSerializer(message)
             return Response(serializer.data)
-        except User.DoesNotExist:
+        except Exception as e:
             return Response(
-                {'error': 'Recipient not found'},
-                status=status.HTTP_404_NOT_FOUND
+                {'error': str(e)},
+                status=status.HTTP_400_BAD_REQUEST
             )
     
     @action(detail=True, methods=['post'])

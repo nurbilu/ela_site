@@ -15,7 +15,7 @@ const Footer = () => {
               Browse our collection and find your next favorite artwork.
             </p>
           </Col>
-          <Col md={3}>
+          {/* <Col md={3 } className='col-md-3'>
             <h5>Links</h5>
             <ul className="list-unstyled">
               <li><a href="/">Home</a></li>
@@ -23,7 +23,7 @@ const Footer = () => {
               <li><a href="/login">Login</a></li>
               <li><a href="/register">Register</a></li>
             </ul>
-          </Col>
+          </Col> */}
           <Col md={3}>
             <h5>Contact</h5>
             <ul className="list-unstyled">
