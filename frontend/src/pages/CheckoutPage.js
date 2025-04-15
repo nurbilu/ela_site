@@ -18,10 +18,43 @@ const CheckoutPage = () => {
   const [checkoutData, setCheckoutData] = useState({
     shipping_address: '',
     billing_address: '',
+    shipping_address_data: {
+      street: '',
+      city: '',
+      state: '',
+      zipcode: '',
+      country: 'United States'
+    },
+    billing_address_data: {
+      street: '',
+      city: '',
+      state: '',
+      zipcode: '',
+      country: 'United States'
+    },
     payment_method: 'credit_card',
+    same_as_shipping: false
   });
+
+  // List of US states for dropdown
+  const states = [
+    'Alabama', 'Alaska', 'Arizona', 'Arkansas', 'California', 'Colorado', 'Connecticut', 'Delaware',
+    'Florida', 'Georgia', 'Hawaii', 'Idaho', 'Illinois', 'Indiana', 'Iowa', 'Kansas', 'Kentucky',
+    'Louisiana', 'Maine', 'Maryland', 'Massachusetts', 'Michigan', 'Minnesota', 'Mississippi',
+    'Missouri', 'Montana', 'Nebraska', 'Nevada', 'New Hampshire', 'New Jersey', 'New Mexico',
+    'New York', 'North Carolina', 'North Dakota', 'Ohio', 'Oklahoma', 'Oregon', 'Pennsylvania',
+    'Rhode Island', 'South Carolina', 'South Dakota', 'Tennessee', 'Texas', 'Utah', 'Vermont',
+    'Virginia', 'Washington', 'West Virginia', 'Wisconsin', 'Wyoming'
+  ];
+
+  // List of countries for dropdown
+  const countries = [
+    'United States', 'Canada', 'United Kingdom', 'Australia', 'Germany', 'France', 'Japan',
+    'China', 'Brazil', 'Mexico', 'Israel', 'India', 'Spain', 'Italy', 'Netherlands', 'South Korea'
+  ];
   
   const [cardError, setCardError] = useState('');
+  const [formErrors, setFormErrors] = useState({});
   
   useEffect(() => {
     dispatch(fetchCart());
@@ -41,6 +74,59 @@ const CheckoutPage = () => {
       [name]: value
     }));
   };
+
+  const handleAddressChange = (addressType, field, value) => {
+    setCheckoutData(prev => ({
+      ...prev,
+      [`${addressType}_data`]: {
+        ...prev[`${addressType}_data`],
+        [field]: value
+      },
+      // Also update legacy address field for backward compatibility
+      [addressType]: Object.entries({
+        ...prev[`${addressType}_data`],
+        [field]: value
+      })
+        .filter(([_, val]) => val)
+        .map(([key, val]) => `${key}: ${val}`)
+        .join(', ')
+    }));
+    
+    // Clear any error for this field
+    if (formErrors[`${addressType}_${field}`]) {
+      setFormErrors(prev => ({
+        ...prev,
+        [`${addressType}_${field}`]: null
+      }));
+    }
+  };
+  
+  const handleSameAsShipping = (e) => {
+    const checked = e.target.checked;
+    setCheckoutData(prev => ({
+      ...prev,
+      same_as_shipping: checked,
+      billing_address_data: checked ? {...prev.shipping_address_data} : {
+        street: '',
+        city: '',
+        state: '',
+        zipcode: '',
+        country: 'United States'
+      },
+      billing_address: checked ? prev.shipping_address : ''
+    }));
+    
+    // Clear billing address errors if using shipping address
+    if (checked) {
+      const newErrors = {...formErrors};
+      Object.keys(newErrors).forEach(key => {
+        if (key.startsWith('billing_')) {
+          delete newErrors[key];
+        }
+      });
+      setFormErrors(newErrors);
+    }
+  };
   
   const handleCardChange = (e) => {
     if (e.error) {
@@ -48,6 +134,33 @@ const CheckoutPage = () => {
     } else {
       setCardError('');
     }
+  };
+
+  const validateForm = () => {
+    const errors = {};
+    const shipping = checkoutData.shipping_address_data;
+    const billing = checkoutData.billing_address_data;
+    
+    // Validate shipping address
+    if (!shipping.street.trim()) errors.shipping_street = 'Street address is required';
+    if (!shipping.city.trim()) errors.shipping_city = 'City is required';
+    if (!shipping.state.trim()) errors.shipping_state = 'State is required';
+    if (!shipping.zipcode.trim()) errors.shipping_zipcode = 'Zip code is required';
+    else if (!/^\d{5}(-\d{4})?$/.test(shipping.zipcode.trim()) && shipping.country === 'United States') 
+      errors.shipping_zipcode = 'Invalid US zip code format';
+    
+    // Validate billing address only if it's not same as shipping
+    if (!checkoutData.same_as_shipping) {
+      if (!billing.street.trim()) errors.billing_street = 'Street address is required';
+      if (!billing.city.trim()) errors.billing_city = 'City is required';
+      if (!billing.state.trim()) errors.billing_state = 'State is required';
+      if (!billing.zipcode.trim()) errors.billing_zipcode = 'Zip code is required';
+      else if (!/^\d{5}(-\d{4})?$/.test(billing.zipcode.trim()) && billing.country === 'United States') 
+        errors.billing_zipcode = 'Invalid US zip code format';
+    }
+    
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
   };
   
   const handleSubmit = async (e) => {
@@ -58,7 +171,8 @@ const CheckoutPage = () => {
     }
     
     // Validate form
-    if (!checkoutData.shipping_address || !checkoutData.billing_address) {
+    if (!validateForm()) {
+      window.scrollTo(0, 0);
       return;
     }
     
@@ -150,32 +264,223 @@ const CheckoutPage = () => {
                 </Alert>
               )}
               
+              {Object.keys(formErrors).length > 0 && (
+                <Alert variant="danger">
+                  Please correct the highlighted fields below.
+                </Alert>
+              )}
+              
               <Form onSubmit={handleSubmit}>
-                <Form.Group className="mb-3" controlId="shipping_address">
-                  <Form.Label>Shipping Address</Form.Label>
-                  <Form.Control
-                    as="textarea"
-                    rows={3}
-                    name="shipping_address"
-                    value={checkoutData.shipping_address}
-                    onChange={handleChange}
-                    placeholder="Enter your full shipping address"
-                    required
+                <h4 className="mb-3">Shipping Address</h4>
+                <Row className="mb-3">
+                  <Col md={12}>
+                    <Form.Group controlId="shipping_street">
+                      <Form.Label>Street Address</Form.Label>
+                      <Form.Control
+                        type="text"
+                        value={checkoutData.shipping_address_data.street}
+                        onChange={(e) => handleAddressChange('shipping_address', 'street', e.target.value)}
+                        placeholder="123 Main St, Apt 4B"
+                        isInvalid={!!formErrors.shipping_street}
+                        required
+                      />
+                      <Form.Control.Feedback type="invalid">
+                        {formErrors.shipping_street}
+                      </Form.Control.Feedback>
+                    </Form.Group>
+                  </Col>
+                </Row>
+                
+                <Row className="mb-3">
+                  <Col md={6}>
+                    <Form.Group controlId="shipping_city">
+                      <Form.Label>City</Form.Label>
+                      <Form.Control
+                        type="text"
+                        value={checkoutData.shipping_address_data.city}
+                        onChange={(e) => handleAddressChange('shipping_address', 'city', e.target.value)}
+                        placeholder="City"
+                        isInvalid={!!formErrors.shipping_city}
+                        required
+                      />
+                      <Form.Control.Feedback type="invalid">
+                        {formErrors.shipping_city}
+                      </Form.Control.Feedback>
+                    </Form.Group>
+                  </Col>
+                  <Col md={6}>
+                    <Form.Group controlId="shipping_state">
+                      <Form.Label>State/Province</Form.Label>
+                      <Form.Select
+                        value={checkoutData.shipping_address_data.state}
+                        onChange={(e) => handleAddressChange('shipping_address', 'state', e.target.value)}
+                        isInvalid={!!formErrors.shipping_state}
+                        required
+                      >
+                        <option value="">Select State</option>
+                        {checkoutData.shipping_address_data.country === 'United States' ? (
+                          states.map(state => (
+                            <option key={state} value={state}>{state}</option>
+                          ))
+                        ) : (
+                          <option value="Other">Other</option>
+                        )}
+                      </Form.Select>
+                      <Form.Control.Feedback type="invalid">
+                        {formErrors.shipping_state}
+                      </Form.Control.Feedback>
+                    </Form.Group>
+                  </Col>
+                </Row>
+                
+                <Row className="mb-3">
+                  <Col md={6}>
+                    <Form.Group controlId="shipping_zipcode">
+                      <Form.Label>Postal/Zip Code</Form.Label>
+                      <Form.Control
+                        type="text"
+                        value={checkoutData.shipping_address_data.zipcode}
+                        onChange={(e) => handleAddressChange('shipping_address', 'zipcode', e.target.value)}
+                        placeholder="Zip code"
+                        isInvalid={!!formErrors.shipping_zipcode}
+                        required
+                      />
+                      <Form.Control.Feedback type="invalid">
+                        {formErrors.shipping_zipcode}
+                      </Form.Control.Feedback>
+                    </Form.Group>
+                  </Col>
+                  <Col md={6}>
+                    <Form.Group controlId="shipping_country">
+                      <Form.Label>Country</Form.Label>
+                      <Form.Select
+                        value={checkoutData.shipping_address_data.country}
+                        onChange={(e) => handleAddressChange('shipping_address', 'country', e.target.value)}
+                        isInvalid={!!formErrors.shipping_country}
+                        required
+                      >
+                        {countries.map(country => (
+                          <option key={country} value={country}>{country}</option>
+                        ))}
+                      </Form.Select>
+                      <Form.Control.Feedback type="invalid">
+                        {formErrors.shipping_country}
+                      </Form.Control.Feedback>
+                    </Form.Group>
+                  </Col>
+                </Row>
+                
+                <Form.Group className="mb-3" controlId="same_as_shipping">
+                  <Form.Check 
+                    type="checkbox"
+                    label="Billing address same as shipping"
+                    checked={checkoutData.same_as_shipping}
+                    onChange={handleSameAsShipping}
                   />
                 </Form.Group>
                 
-                <Form.Group className="mb-3" controlId="billing_address">
-                  <Form.Label>Billing Address</Form.Label>
-                  <Form.Control
-                    as="textarea"
-                    rows={3}
-                    name="billing_address"
-                    value={checkoutData.billing_address}
-                    onChange={handleChange}
-                    placeholder="Enter your full billing address"
-                    required
-                  />
-                </Form.Group>
+                {!checkoutData.same_as_shipping && (
+                  <>
+                    <h4 className="mb-3">Billing Address</h4>
+                    <Row className="mb-3">
+                      <Col md={12}>
+                        <Form.Group controlId="billing_street">
+                          <Form.Label>Street Address</Form.Label>
+                          <Form.Control
+                            type="text"
+                            value={checkoutData.billing_address_data.street}
+                            onChange={(e) => handleAddressChange('billing_address', 'street', e.target.value)}
+                            placeholder="123 Main St, Apt 4B"
+                            isInvalid={!!formErrors.billing_street}
+                            required
+                          />
+                          <Form.Control.Feedback type="invalid">
+                            {formErrors.billing_street}
+                          </Form.Control.Feedback>
+                        </Form.Group>
+                      </Col>
+                    </Row>
+                    
+                    <Row className="mb-3">
+                      <Col md={6}>
+                        <Form.Group controlId="billing_city">
+                          <Form.Label>City</Form.Label>
+                          <Form.Control
+                            type="text"
+                            value={checkoutData.billing_address_data.city}
+                            onChange={(e) => handleAddressChange('billing_address', 'city', e.target.value)}
+                            placeholder="City"
+                            isInvalid={!!formErrors.billing_city}
+                            required
+                          />
+                          <Form.Control.Feedback type="invalid">
+                            {formErrors.billing_city}
+                          </Form.Control.Feedback>
+                        </Form.Group>
+                      </Col>
+                      <Col md={6}>
+                        <Form.Group controlId="billing_state">
+                          <Form.Label>State/Province</Form.Label>
+                          <Form.Select
+                            value={checkoutData.billing_address_data.state}
+                            onChange={(e) => handleAddressChange('billing_address', 'state', e.target.value)}
+                            isInvalid={!!formErrors.billing_state}
+                            required
+                          >
+                            <option value="">Select State</option>
+                            {checkoutData.billing_address_data.country === 'United States' ? (
+                              states.map(state => (
+                                <option key={state} value={state}>{state}</option>
+                              ))
+                            ) : (
+                              <option value="Other">Other</option>
+                            )}
+                          </Form.Select>
+                          <Form.Control.Feedback type="invalid">
+                            {formErrors.billing_state}
+                          </Form.Control.Feedback>
+                        </Form.Group>
+                      </Col>
+                    </Row>
+                    
+                    <Row className="mb-3">
+                      <Col md={6}>
+                        <Form.Group controlId="billing_zipcode">
+                          <Form.Label>Postal/Zip Code</Form.Label>
+                          <Form.Control
+                            type="text"
+                            value={checkoutData.billing_address_data.zipcode}
+                            onChange={(e) => handleAddressChange('billing_address', 'zipcode', e.target.value)}
+                            placeholder="Zip code"
+                            isInvalid={!!formErrors.billing_zipcode}
+                            required
+                          />
+                          <Form.Control.Feedback type="invalid">
+                            {formErrors.billing_zipcode}
+                          </Form.Control.Feedback>
+                        </Form.Group>
+                      </Col>
+                      <Col md={6}>
+                        <Form.Group controlId="billing_country">
+                          <Form.Label>Country</Form.Label>
+                          <Form.Select
+                            value={checkoutData.billing_address_data.country}
+                            onChange={(e) => handleAddressChange('billing_address', 'country', e.target.value)}
+                            isInvalid={!!formErrors.billing_country}
+                            required
+                          >
+                            {countries.map(country => (
+                              <option key={country} value={country}>{country}</option>
+                            ))}
+                          </Form.Select>
+                          <Form.Control.Feedback type="invalid">
+                            {formErrors.billing_country}
+                          </Form.Control.Feedback>
+                        </Form.Group>
+                      </Col>
+                    </Row>
+                  </>
+                )}
                 
                 <Form.Group className="mb-4" controlId="payment_method">
                   <Form.Label>Payment Method</Form.Label>

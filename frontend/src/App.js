@@ -29,8 +29,11 @@ function App() {
   const { user, loading } = useSelector(state => state.auth);
   
   useEffect(() => {
-    // Check if the user is still authenticated on app load
-    dispatch(checkAuthStatus());
+    // Only check authentication if token exists
+    const token = localStorage.getItem('access_token');
+    if (token) {
+      dispatch(checkAuthStatus());
+    }
   }, [dispatch]);
   
   if (loading) {

@@ -6,23 +6,21 @@ from django.conf import settings
 
 
 class Command(BaseCommand):
-    help = 'Creates sample art pictures and a superuser account for demonstration'
+    help = 'Creates sample art pictures for demonstration'
 
     def handle(self, *args, **options):
-        # Create superuser if it doesn't exist
-        if not User.objects.filter(username='admin').exists():
-            User.objects.create_superuser(
-                username='admin',
-                email='admin@example.com',
-                password='admin123'
-            )
-            self.stdout.write(self.style.SUCCESS('Created superuser admin/admin123'))
-        
         # Delete existing art pictures if any
         ArtPicture.objects.all().delete()
         
         # Create art pictures using actual image files
         art_pictures = [
+            {
+                'title': 'Test Birdy',
+                'description': 'A test art picture featuring a small yellow and gray bird. This is a free test item with zero price.',
+                'price': '0.00',
+                'image': 'bird-test-prod.jpg',
+                'is_available': True
+            },
             {
                 'title': 'A Lady and an Angel',
                 'description': 'A beautiful painting depicting a serene lady and an ethereal angel figure. The painting features vibrant yellow and orange backgrounds with delicate birds and flowers.',

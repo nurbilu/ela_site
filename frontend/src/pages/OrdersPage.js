@@ -11,6 +11,11 @@ const OrdersPage = () => {
     dispatch(fetchOrders());
   }, [dispatch]);
 
+  // Safe format for currency - handles undefined or null values
+  const formatCurrency = (value) => {
+    return value ? `$${parseFloat(value).toFixed(2)}` : '$0.00';
+  };
+
   if (loading) {
     return <div className="loading">Loading your orders...</div>;
   }
@@ -22,7 +27,7 @@ const OrdersPage = () => {
   return (
     <div className="orders-page container">
       <h1>My Orders</h1>
-      {orders.length === 0 ? (
+      {!orders || orders.length === 0 ? (
         <div className="no-orders">
           <p>You haven't placed any orders yet.</p>
           <Link to="/gallery" className="btn btn-primary">
@@ -34,14 +39,14 @@ const OrdersPage = () => {
           {orders.map(order => (
             <div key={order.id} className="order-card">
               <div className="order-header">
-                <h2>Order #{order.orderNumber}</h2>
-                <span className={`order-status status-${order.status.toLowerCase()}`}>
-                  {order.status}
+                <h2>Order #{order.orderNumber || 'N/A'}</h2>
+                <span className={`order-status status-${(order.status || 'pending').toLowerCase()}`}>
+                  {order.status || 'Pending'}
                 </span>
               </div>
               <div className="order-details">
-                <p>Date: {new Date(order.createdAt).toLocaleDateString()}</p>
-                <p>Total: ${order.total.toFixed(2)}</p>
+                <p>Date: {order.createdAt ? new Date(order.createdAt).toLocaleDateString() : 'N/A'}</p>
+                <p>Total: {formatCurrency(order.total)}</p>
               </div>
               <Link to={`/orders/${order.id}`} className="btn btn-outline">
                 View Details

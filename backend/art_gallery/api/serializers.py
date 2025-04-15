@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
-from .models import ArtPicture, Cart, CartItem, Order, OrderItem, Message
+from .models import ArtPicture, Cart, CartItem, Order, OrderItem, Message, Address
 
 class UserSerializer(serializers.ModelSerializer):
     """Serializer for User model"""
@@ -61,6 +61,13 @@ class CartSerializer(serializers.ModelSerializer):
         model = Cart
         fields = ['id', 'user', 'created_at', 'updated_at', 'items', 'total_price']
 
+class AddressSerializer(serializers.ModelSerializer):
+    """Serializer for Address model"""
+    class Meta:
+        model = Address
+        fields = ['id', 'street', 'city', 'state', 'zipcode', 'country', 'created_at']
+        read_only_fields = ['created_at']
+
 class OrderItemSerializer(serializers.ModelSerializer):
     """Serializer for OrderItem model"""
     art_picture = ArtPictureSerializer(read_only=True)
@@ -73,15 +80,24 @@ class OrderItemSerializer(serializers.ModelSerializer):
 class OrderSerializer(serializers.ModelSerializer):
     """Serializer for Order model"""
     items = OrderItemSerializer(source='orderitem_set', many=True, read_only=True)
+    shipping_address_structured = AddressSerializer(source='shipping_address_obj', read_only=True)
+    billing_address_structured = AddressSerializer(source='billing_address_obj', read_only=True)
+    
+    # Fields for creating an order
+    shipping_address_data = serializers.JSONField(write_only=True, required=False)
+    billing_address_data = serializers.JSONField(write_only=True, required=False)
     
     class Meta:
         model = Order
         fields = [
-            'id', 'user', 'order_number', 'status', 'payment_method', 
-            'shipping_address', 'billing_address', 'total_price', 
-            'created_at', 'paid_at', 'items'
+            'id', 'user', 'order_number', 'status', 'payment_method', 'payment_id',
+            'shipping_address', 'billing_address', 
+            'shipping_address_structured', 'billing_address_structured',
+            'shipping_address_data', 'billing_address_data',
+            'total_price', 'created_at', 'paid_at', 'items'
         ]
-        read_only_fields = ['order_number', 'created_at', 'paid_at']
+        read_only_fields = ['order_number', 'created_at', 'paid_at', 
+                           'shipping_address_structured', 'billing_address_structured']
 
 class MessageSerializer(serializers.ModelSerializer):
     """Serializer for Message model"""

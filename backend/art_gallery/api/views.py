@@ -9,7 +9,7 @@ from django.db import transaction
 import stripe
 from django.conf import settings
 
-from .models import ArtPicture, Cart, CartItem, Order, OrderItem, Message
+from .models import ArtPicture, Cart, CartItem, Order, OrderItem, Message, Address
 from .serializers import (
     UserSerializer, ArtPictureSerializer, CartSerializer, CartItemSerializer,
     OrderSerializer, OrderItemSerializer, MessageSerializer
@@ -180,62 +180,96 @@ class CartViewSet(viewsets.ModelViewSet):
 
 class OrderViewSet(viewsets.ModelViewSet):
     """API endpoint for orders"""
+    queryset = Order.objects.all()
     serializer_class = OrderSerializer
     permission_classes = [IsAuthenticated]
     
     def get_queryset(self):
-        if self.request.user.is_staff:
-            return Order.objects.all()
         return Order.objects.filter(user=self.request.user)
     
-    @action(detail=False, methods=['post'])
-    def checkout(self, request):
-        """Checkout process - create order from cart"""
-        cart = get_object_or_404(Cart, user=request.user)
-        cart_items = CartItem.objects.filter(cart=cart)
+    def create(self, request, *args, **kwargs):
+        data = request.data
+        user = request.user
         
-        if not cart_items.exists():
-            return Response(
-                {'error': 'Your cart is empty'},
-                status=status.HTTP_400_BAD_REQUEST
+        # Create addresses first
+        shipping_address_data = data.get('shipping_address')
+        billing_address_data = data.get('billing_address')
+        
+        shipping_address = None
+        billing_address = None
+        
+        if shipping_address_data and isinstance(shipping_address_data, dict):
+            shipping_address = Address.objects.create(
+                street=shipping_address_data.get('street', ''),
+                city=shipping_address_data.get('city', ''),
+                state=shipping_address_data.get('state', ''),
+                zipcode=shipping_address_data.get('zipcode', ''),
+                country=shipping_address_data.get('country', 'United States'),
+                user=user
             )
+            
+            # For backwards compatibility, also create a flat address string
+            shipping_address_str = f"{shipping_address_data.get('street', '')}, {shipping_address_data.get('city', '')}, {shipping_address_data.get('state', '')} {shipping_address_data.get('zipcode', '')}, {shipping_address_data.get('country', 'United States')}"
+        else:
+            # Legacy format - just a string
+            shipping_address_str = shipping_address_data
         
-        shipping_address = request.data.get('shipping_address')
-        billing_address = request.data.get('billing_address')
-        payment_method = request.data.get('payment_method')
-        
-        if not all([shipping_address, billing_address, payment_method]):
-            return Response(
-                {'error': 'Missing required checkout information'},
-                status=status.HTTP_400_BAD_REQUEST
+        if billing_address_data and isinstance(billing_address_data, dict):
+            billing_address = Address.objects.create(
+                street=billing_address_data.get('street', ''),
+                city=billing_address_data.get('city', ''),
+                state=billing_address_data.get('state', ''),
+                zipcode=billing_address_data.get('zipcode', ''),
+                country=billing_address_data.get('country', 'United States'),
+                user=user
             )
+            
+            # For backwards compatibility, also create a flat address string
+            billing_address_str = f"{billing_address_data.get('street', '')}, {billing_address_data.get('city', '')}, {billing_address_data.get('state', '')} {billing_address_data.get('zipcode', '')}, {billing_address_data.get('country', 'United States')}"
+        else:
+            # Legacy format - just a string
+            billing_address_str = billing_address_data
         
-        total_price = sum(item.art_picture.price * item.quantity for item in cart_items)
-        
-        with transaction.atomic():
-            # Create the order
+        # Create order with addresses
+        try:
             order = Order.objects.create(
-                user=request.user,
-                payment_method=payment_method,
-                shipping_address=shipping_address,
-                billing_address=billing_address,
-                total_price=total_price
+                user=user,
+                shipping_address=shipping_address_str,
+                billing_address=billing_address_str,
+                shipping_address_obj=shipping_address,
+                billing_address_obj=billing_address,
+                payment_method=data.get('payment_method', 'credit_card'),
+                payment_id=data.get('payment_id', ''),
+                total_price=data.get('total_price', 0),
+                status='pending'
             )
             
-            # Create order items
-            for cart_item in cart_items:
-                OrderItem.objects.create(
-                    order=order,
-                    art_picture=cart_item.art_picture,
-                    price=cart_item.art_picture.price,
-                    quantity=cart_item.quantity
-                )
+            # Add items to the order
+            for item_data in data.get('items', []):
+                art_picture_id = item_data.get('art_picture_id')
+                quantity = item_data.get('quantity', 1)
+                
+                if art_picture_id:
+                    try:
+                        art_picture = ArtPicture.objects.get(id=art_picture_id)
+                        OrderItem.objects.create(
+                            order=order,
+                            art_picture=art_picture,
+                            quantity=quantity,
+                            price=art_picture.price
+                        )
+                    except ArtPicture.DoesNotExist:
+                        pass
             
-            # Clear the cart
-            cart_items.delete()
-        
-        serializer = OrderSerializer(order)
-        return Response(serializer.data)
+            serializer = self.get_serializer(order)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        except Exception as e:
+            # If any addresses were created, delete them since order creation failed
+            if shipping_address:
+                shipping_address.delete()
+            if billing_address:
+                billing_address.delete()
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
     
     @action(detail=True, methods=['post'])
     def process_payment(self, request, pk=None):
@@ -304,6 +338,12 @@ class MessageViewSet(viewsets.ModelViewSet):
     serializer_class = MessageSerializer
     permission_classes = [IsAuthenticated]
     
+    def get_permissions(self):
+        """Set custom permissions for different actions"""
+        if self.action in ['create', 'send_public_message']:
+            return [IsAdminUser()]
+        return [IsAuthenticated()]
+    
     def get_queryset(self):
         user = self.request.user
         if user.is_staff:
@@ -328,6 +368,9 @@ class MessageViewSet(viewsets.ModelViewSet):
             )
     
     def perform_create(self, serializer):
+        """Ensure only admins can create messages directly"""
+        if not self.request.user.is_staff:
+            raise PermissionDenied("Only administrators can create messages")
         serializer.save(sender=self.request.user)
     
     @action(detail=False, methods=['post'])
@@ -360,14 +403,8 @@ class MessageViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
     
     @action(detail=False, methods=['post'])
-    def send_user_message(self, request):
-        """Send a message from a user to admin"""
-        if request.user.is_staff:
-            return Response(
-                {'error': 'Admins should use send_public_message or the regular API for targeted messages'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
+    def contact_admin(self, request):
+        """Allow users to contact admin (renamed from send_user_message)"""
         content = request.data.get('content')
         
         if not content:

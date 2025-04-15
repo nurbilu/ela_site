@@ -20,6 +20,11 @@ const OrderManagementPage = () => {
     }
   }, [orders]);
 
+  // Safe format for currency
+  const formatCurrency = (value) => {
+    return value ? `$${parseFloat(value).toFixed(2)}` : '$0.00';
+  };
+
   // Local function to update order status (in production, this would call an API)
   const handleStatusChange = (orderId, newStatus) => {
     // Update local state for immediate UI feedback
@@ -40,10 +45,14 @@ const OrderManagementPage = () => {
   };
 
   const getFilteredOrders = () => {
+    if (!localOrders || localOrders.length === 0) {
+      return [];
+    }
+    
     if (statusFilter === 'all') {
       return localOrders;
     }
-    return localOrders.filter(order => order.status.toLowerCase() === statusFilter);
+    return localOrders.filter(order => (order.status || '').toLowerCase() === statusFilter);
   };
 
   const filteredOrders = getFilteredOrders();
@@ -75,7 +84,7 @@ const OrderManagementPage = () => {
         <div className="loading">Loading orders...</div>
       ) : error ? (
         <div className="error-message">Error: {error}</div>
-      ) : filteredOrders.length === 0 ? (
+      ) : !filteredOrders || filteredOrders.length === 0 ? (
         <div className="no-data">No orders found</div>
       ) : (
         <div className="orders-table-container">
@@ -94,15 +103,19 @@ const OrderManagementPage = () => {
               {filteredOrders.map(order => (
                 <React.Fragment key={order.id}>
                   <tr className={expandedOrderId === order.id ? 'expanded-row' : ''}>
-                    <td>{order.orderNumber}</td>
-                    <td>{order.customer.firstName} {order.customer.lastName}</td>
-                    <td>{new Date(order.createdAt).toLocaleDateString()}</td>
-                    <td>${order.total.toFixed(2)}</td>
+                    <td>{order.orderNumber || 'N/A'}</td>
+                    <td>
+                      {order.customer ? 
+                        `${order.customer.firstName || ''} ${order.customer.lastName || ''}` : 
+                        'Unknown Customer'}
+                    </td>
+                    <td>{order.createdAt ? new Date(order.createdAt).toLocaleDateString() : 'N/A'}</td>
+                    <td>{formatCurrency(order.total)}</td>
                     <td>
                       <select
-                        value={order.status}
+                        value={order.status || 'Pending'}
                         onChange={(e) => handleStatusChange(order.id, e.target.value)}
-                        className={`status-select status-${order.status.toLowerCase()}`}
+                        className={`status-select status-${(order.status || 'pending').toLowerCase()}`}
                       >
                         <option value="Pending">Pending</option>
                         <option value="Processing">Processing</option>
@@ -124,49 +137,63 @@ const OrderManagementPage = () => {
                     <tr className="order-details-row">
                       <td colSpan="6">
                         <div className="order-details-container">
-                          <div className="order-items-section">
-                            <h3>Order Items</h3>
-                            <table className="inner-table">
-                              <thead>
-                                <tr>
-                                  <th>Item</th>
-                                  <th>Price</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {order.items.map(item => (
-                                  <tr key={item.id}>
-                                    <td>
-                                      <div className="item-detail">
-                                        <img 
-                                          src={item.artPicture.imageUrl} 
-                                          alt={item.artPicture.title}
-                                          className="item-thumbnail" 
-                                        />
-                                        <div>
-                                          <p className="item-title">{item.artPicture.title}</p>
-                                          <p className="item-artist">by {item.artPicture.artistName}</p>
-                                        </div>
-                                      </div>
-                                    </td>
-                                    <td>${item.price.toFixed(2)}</td>
+                          {order.items && order.items.length > 0 ? (
+                            <div className="order-items-section">
+                              <h3>Order Items</h3>
+                              <table className="inner-table">
+                                <thead>
+                                  <tr>
+                                    <th>Item</th>
+                                    <th>Price</th>
                                   </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
+                                </thead>
+                                <tbody>
+                                  {order.items.map(item => (
+                                    <tr key={item.id}>
+                                      <td>
+                                        <div className="item-detail">
+                                          <img 
+                                            src={item.artPicture?.imageUrl || '/placeholder-image.jpg'} 
+                                            alt={item.artPicture?.title || 'Art Piece'}
+                                            className="item-thumbnail" 
+                                          />
+                                          <div>
+                                            <p className="item-title">{item.artPicture?.title || 'Untitled'}</p>
+                                            <p className="item-artist">by {item.artPicture?.artistName || 'Unknown Artist'}</p>
+                                          </div>
+                                        </div>
+                                      </td>
+                                      <td>{formatCurrency(item.price)}</td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          ) : (
+                            <div>No items in this order</div>
+                          )}
                           
-                          <div className="customer-info-section">
-                            <h3>Customer Information</h3>
-                            <p><strong>Name:</strong> {order.customer.firstName} {order.customer.lastName}</p>
-                            <p><strong>Email:</strong> {order.customer.email}</p>
-                            <p><strong>Phone:</strong> {order.customer.phone || 'N/A'}</p>
-                            
-                            <h3>Shipping Address</h3>
-                            <p>{order.shippingAddress.street}</p>
-                            <p>{order.shippingAddress.city}, {order.shippingAddress.state} {order.shippingAddress.zipCode}</p>
-                            <p>{order.shippingAddress.country}</p>
-                          </div>
+                          {order.customer && (
+                            <div className="customer-info-section">
+                              <h3>Customer Information</h3>
+                              <p><strong>Name:</strong> {order.customer.firstName || ''} {order.customer.lastName || ''}</p>
+                              <p><strong>Email:</strong> {order.customer.email || 'N/A'}</p>
+                              <p><strong>Phone:</strong> {order.customer.phone || 'N/A'}</p>
+                              
+                              {order.shippingAddress && (
+                                <>
+                                  <h3>Shipping Address</h3>
+                                  <p>{order.shippingAddress.street || 'N/A'}</p>
+                                  <p>
+                                    {order.shippingAddress.city || 'N/A'}, 
+                                    {order.shippingAddress.state || 'N/A'} 
+                                    {order.shippingAddress.zipCode || 'N/A'}
+                                  </p>
+                                  <p>{order.shippingAddress.country || 'N/A'}</p>
+                                </>
+                              )}
+                            </div>
+                          )}
                         </div>
                       </td>
                     </tr>

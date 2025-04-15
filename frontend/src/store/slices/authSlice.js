@@ -5,6 +5,12 @@ import api from '../../utils/api';
 export const checkAuthStatus = createAsyncThunk(
   'auth/checkAuthStatus',
   async (_, { rejectWithValue }) => {
+    // Check if token exists before making API call
+    const token = localStorage.getItem('access_token');
+    if (!token) {
+      return rejectWithValue('No token found');
+    }
+    
     try {
       const response = await api.get('/api/users/me/');
       return response.data;
