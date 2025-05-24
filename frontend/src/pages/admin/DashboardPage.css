@@ -1,0 +1,380 @@
+/* Dashboard Page Styles */
+.dashboard-page {
+  padding: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.dashboard-page h1 {
+  color: #343a40;
+  margin-bottom: 10px;
+  font-weight: 700;
+}
+
+.welcome-message {
+  color: #6c757d;
+  font-size: 1.1em;
+  margin-bottom: 30px;
+}
+
+/* Stats Cards */
+.stats-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 20px;
+  margin-bottom: 40px;
+}
+
+.stat-card {
+  background: white;
+  border-radius: 12px;
+  padding: 25px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e9ecef;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+}
+
+.stat-card h3 {
+  color: #495057;
+  font-size: 0.9em;
+  font-weight: 600;
+  margin: 0 0 10px 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.stat-value {
+  font-size: 2.5em;
+  font-weight: 700;
+  color: #007bff;
+  margin-bottom: 10px;
+  line-height: 1;
+}
+
+.stat-subtitle {
+  color: #6c757d;
+  font-size: 0.85em;
+  display: block;
+  margin-top: 5px;
+}
+
+.stat-link {
+  color: #007bff;
+  text-decoration: none;
+  font-weight: 500;
+  font-size: 0.9em;
+  transition: color 0.2s ease;
+}
+
+.stat-link:hover {
+  color: #0056b3;
+  text-decoration: underline;
+}
+
+/* Status Overview */
+.status-overview {
+  margin-bottom: 40px;
+}
+
+.status-overview h2 {
+  color: #343a40;
+  margin-bottom: 20px;
+  font-weight: 600;
+}
+
+.status-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 15px;
+}
+
+.status-card {
+  background: white;
+  border-radius: 8px;
+  padding: 20px;
+  text-align: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border-left: 4px solid;
+  transition: transform 0.2s ease;
+}
+
+.status-card:hover {
+  transform: translateY(-1px);
+}
+
+.status-card h4 {
+  margin: 0 0 10px 0;
+  font-size: 0.9em;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.status-count {
+  font-size: 2em;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.status-card.pending {
+  border-left-color: #ffc107;
+}
+
+.status-card.pending h4 {
+  color: #856404;
+}
+
+.status-card.pending .status-count {
+  color: #ffc107;
+}
+
+.status-card.processing {
+  border-left-color: #007bff;
+}
+
+.status-card.processing h4 {
+  color: #004085;
+}
+
+.status-card.processing .status-count {
+  color: #007bff;
+}
+
+.status-card.shipped {
+  border-left-color: #17a2b8;
+}
+
+.status-card.shipped h4 {
+  color: #0c5460;
+}
+
+.status-card.shipped .status-count {
+  color: #17a2b8;
+}
+
+.status-card.delivered {
+  border-left-color: #28a745;
+}
+
+.status-card.delivered h4 {
+  color: #155724;
+}
+
+.status-card.delivered .status-count {
+  color: #28a745;
+}
+
+.status-card.cancelled {
+  border-left-color: #dc3545;
+}
+
+.status-card.cancelled h4 {
+  color: #721c24;
+}
+
+.status-card.cancelled .status-count {
+  color: #dc3545;
+}
+
+/* Recent Section */
+.recent-section {
+  background: white;
+  border-radius: 12px;
+  padding: 30px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e9ecef;
+}
+
+.recent-section h2 {
+  color: #343a40;
+  margin-bottom: 25px;
+  font-weight: 600;
+}
+
+.recent-list {
+  margin-bottom: 20px;
+}
+
+.recent-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  margin-bottom: 15px;
+  background: #f8f9fa;
+  transition: background-color 0.2s ease;
+}
+
+.recent-item:hover {
+  background: #e9ecef;
+}
+
+.recent-info h3 {
+  margin: 0 0 10px 0;
+  color: #495057;
+  font-size: 1.1em;
+  font-weight: 600;
+}
+
+.recent-info p {
+  margin: 5px 0;
+  color: #6c757d;
+  font-size: 0.9em;
+}
+
+.recent-status {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.status-badge {
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 0.8em;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.status-badge.status-pending {
+  background-color: #fff3cd;
+  color: #856404;
+  border: 1px solid #ffeaa7;
+}
+
+.status-badge.status-processing {
+  background-color: #cce5ff;
+  color: #004085;
+  border: 1px solid #b8daff;
+}
+
+.status-badge.status-shipped {
+  background-color: #d1ecf1;
+  color: #0c5460;
+  border: 1px solid #b8daff;
+}
+
+.status-badge.status-delivered {
+  background-color: #d4edda;
+  color: #155724;
+  border: 1px solid #c3e6cb;
+}
+
+.status-badge.status-cancelled {
+  background-color: #f8d7da;
+  color: #721c24;
+  border: 1px solid #f5c6cb;
+}
+
+.view-order-link {
+  color: #007bff;
+  text-decoration: none;
+  font-size: 0.85em;
+  font-weight: 500;
+  transition: color 0.2s ease;
+}
+
+.view-order-link:hover {
+  color: #0056b3;
+  text-decoration: underline;
+}
+
+.view-all-link {
+  display: inline-block;
+  background-color: #007bff;
+  color: white;
+  padding: 12px 24px;
+  border-radius: 6px;
+  text-decoration: none;
+  font-weight: 500;
+  transition: background-color 0.2s ease;
+}
+
+.view-all-link:hover {
+  background-color: #0056b3;
+  color: white;
+  text-decoration: none;
+}
+
+.no-data {
+  text-align: center;
+  color: #6c757d;
+  font-style: italic;
+  padding: 40px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
+.loading {
+  text-align: center;
+  padding: 60px;
+  font-size: 1.2em;
+  color: #6c757d;
+}
+
+.error-message {
+  background-color: #f8d7da;
+  color: #721c24;
+  padding: 20px;
+  border-radius: 8px;
+  border: 1px solid #f5c6cb;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .dashboard-page {
+    padding: 15px;
+  }
+
+  .stats-cards {
+    grid-template-columns: 1fr;
+    gap: 15px;
+  }
+
+  .status-cards {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+
+  .recent-item {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 15px;
+  }
+
+  .recent-status {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .stat-card, .recent-section {
+    padding: 20px;
+  }
+}
+
+@media (max-width: 480px) {
+  .status-cards {
+    grid-template-columns: 1fr;
+  }
+
+  .stat-value {
+    font-size: 2em;
+  }
+
+  .status-count {
+    font-size: 1.5em;
+  }
+} 

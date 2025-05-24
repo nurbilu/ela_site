@@ -2,18 +2,19 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { Container, Row, Col, Form, Button, Alert, Card } from 'react-bootstrap';
-import { useStripe, useElements, CardElement } from '@stripe/react-stripe-js';
 import { fetchCart } from '../store/slices/cartSlice';
-import { createOrder, processPayment } from '../store/slices/ordersSlice';
+import { createOrder } from '../store/slices/ordersSlice';
+
+// Note: Make sure to create a .env file in the frontend directory with:
+// REACT_APP_MY_PHONE=your_whatsapp_phone_number (without +, just digits)
+// REACT_APP_MY_EMAIL=your_email@domain.com
 
 const CheckoutPage = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const stripe = useStripe();
-  const elements = useElements();
   
   const { cart, loading: cartLoading, error: cartError } = useSelector(state => state.cart);
-  const { currentOrder, loading, error, paymentLoading, paymentError, paymentSuccess } = useSelector(state => state.orders);
+  const { currentOrder, loading, error } = useSelector(state => state.orders);
   
   const [checkoutData, setCheckoutData] = useState({
     shipping_address: '',
@@ -32,7 +33,6 @@ const CheckoutPage = () => {
       zipcode: '',
       country: 'United States'
     },
-    payment_method: 'credit_card',
     same_as_shipping: false
   });
 
@@ -53,7 +53,6 @@ const CheckoutPage = () => {
     'China', 'Brazil', 'Mexico', 'Israel', 'India', 'Spain', 'Italy', 'Netherlands', 'South Korea'
   ];
   
-  const [cardError, setCardError] = useState('');
   const [formErrors, setFormErrors] = useState({});
   
   useEffect(() => {
@@ -62,19 +61,11 @@ const CheckoutPage = () => {
   
   useEffect(() => {
     // If payment successful, redirect to order confirmation
-    if (paymentSuccess && currentOrder) {
+    if (currentOrder) {
       navigate(`/orders/${currentOrder.id}`);
     }
-  }, [paymentSuccess, currentOrder, navigate]);
+  }, [currentOrder, navigate]);
   
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setCheckoutData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
-
   const handleAddressChange = (addressType, field, value) => {
     setCheckoutData(prev => ({
       ...prev,
@@ -127,14 +118,6 @@ const CheckoutPage = () => {
       setFormErrors(newErrors);
     }
   };
-  
-  const handleCardChange = (e) => {
-    if (e.error) {
-      setCardError(e.error.message);
-    } else {
-      setCardError('');
-    }
-  };
 
   const validateForm = () => {
     const errors = {};
@@ -162,56 +145,90 @@ const CheckoutPage = () => {
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
   };
-  
+
+  // Generate WhatsApp message with parchment receipt
+  const generateWhatsAppMessage = () => {
+    const orderDate = new Date().toLocaleDateString();
+    const orderTime = new Date().toLocaleTimeString();
+    
+    // Create detailed receipt message
+    let message = `Hello! I'm interested in buying this/these art pictures, let's talk about it.\n\n`;
+    message += `═══════════════════════════════\n`;
+    message += `📜 ART PURCHASE RECEIPT 📜\n`;
+    message += `═══════════════════════════════\n\n`;
+    message += `📅 Date: ${orderDate}\n`;
+    message += `🕐 Time: ${orderTime}\n\n`;
+    
+    message += `🎨 SELECTED ARTWORKS:\n`;
+    message += `─────────────────────────────────\n`;
+    
+    cart.items.forEach((item, index) => {
+      message += `${index + 1}. ${item.art_picture.title}\n`;
+      message += `   Quantity: ${item.quantity}\n`;
+      message += `   Price per item: $${item.art_picture.price}\n`;
+      message += `   Subtotal: $${item.subtotal}\n\n`;
+    });
+    
+    message += `─────────────────────────────────\n`;
+    message += `💰 TOTAL AMOUNT: $${cart.total_price}\n`;
+    message += `─────────────────────────────────\n\n`;
+    
+    message += `📍 SHIPPING ADDRESS:\n`;
+    message += `${checkoutData.shipping_address_data.street}\n`;
+    message += `${checkoutData.shipping_address_data.city}, ${checkoutData.shipping_address_data.state} ${checkoutData.shipping_address_data.zipcode}\n`;
+    message += `${checkoutData.shipping_address_data.country}\n\n`;
+    
+    if (!checkoutData.same_as_shipping) {
+      message += `📍 BILLING ADDRESS:\n`;
+      message += `${checkoutData.billing_address_data.street}\n`;
+      message += `${checkoutData.billing_address_data.city}, ${checkoutData.billing_address_data.state} ${checkoutData.billing_address_data.zipcode}\n`;
+      message += `${checkoutData.billing_address_data.country}\n\n`;
+    }
+    
+    message += `═══════════════════════════════\n`;
+    message += `Thank you for your interest! 🎨✨\n`;
+    message += `Contact: ${process.env.REACT_APP_MY_EMAIL || 'info@artgallery.com'}\n`;
+    message += `═══════════════════════════════`;
+    
+    return encodeURIComponent(message);
+  };
+
+  // Handle form submission and redirect to WhatsApp
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (!stripe || !elements) {
-      return;
-    }
-    
-    // Validate form
     if (!validateForm()) {
       window.scrollTo(0, 0);
       return;
     }
     
-    // Create order first
     try {
+      // Create order in backend for record keeping
       const orderResult = await dispatch(createOrder(checkoutData)).unwrap();
       
-      // Process payment if order was created successfully
-      if (orderResult.id) {
-        if (checkoutData.payment_method === 'credit_card') {
-          const cardElement = elements.getElement(CardElement);
-          
-          if (!cardElement) {
-            return;
-          }
-          
-          // Create payment token
-          const { error, token } = await stripe.createToken(cardElement);
-          
-          if (error) {
-            setCardError(error.message);
-            return;
-          }
-          
-          // Process payment
-          await dispatch(processPayment({
-            orderId: orderResult.id,
-            paymentData: { token: token.id }
-          }));
-        } else if (checkoutData.payment_method === 'paypal') {
-          // For PayPal, we'll just simulate a successful payment
-          await dispatch(processPayment({
-            orderId: orderResult.id,
-            paymentData: { token: 'simulated-paypal-token' }
-          }));
-        }
+      // Generate WhatsApp message
+      const whatsappMessage = generateWhatsAppMessage();
+      
+      // Get phone number from environment variables
+      const phoneNumber = process.env.REACT_APP_MY_PHONE || '1234567890';
+      
+      // Validate phone number
+      if (!phoneNumber || phoneNumber === '1234567890') {
+        alert('Please configure REACT_APP_MY_PHONE in your .env file with your WhatsApp number');
+        return;
       }
+      
+      // Create WhatsApp URL
+      const whatsappUrl = `https://wa.me/${phoneNumber}?text=${whatsappMessage}`;
+      
+      // Redirect to WhatsApp
+      window.open(whatsappUrl, '_blank');
+      
+      // Navigate to order confirmation page
+      navigate(`/orders/${orderResult.id}`);
+      
     } catch (err) {
-      console.error('Checkout failed:', err);
+      console.error('Order creation failed:', err);
     }
   };
   
@@ -482,38 +499,6 @@ const CheckoutPage = () => {
                   </>
                 )}
                 
-                <Form.Group className="mb-4" controlId="payment_method">
-                  <Form.Label>Payment Method</Form.Label>
-                  <Form.Select
-                    name="payment_method"
-                    value={checkoutData.payment_method}
-                    onChange={handleChange}
-                  >
-                    <option value="credit_card">Credit Card</option>
-                    <option value="paypal">PayPal</option>
-                  </Form.Select>
-                </Form.Group>
-                
-                {checkoutData.payment_method === 'credit_card' && (
-                  <div className="mb-4">
-                    <label className="form-label">Card Information</label>
-                    <div className="border rounded p-3">
-                      <CardElement onChange={handleCardChange} />
-                    </div>
-                    {cardError && (
-                      <div className="text-danger mt-2">
-                        {cardError}
-                      </div>
-                    )}
-                  </div>
-                )}
-                
-                {paymentError && (
-                  <Alert variant="danger">
-                    Payment error: {paymentError}
-                  </Alert>
-                )}
-                
                 <div className="d-flex justify-content-between">
                   <Button
                     variant="outline-secondary"
@@ -523,13 +508,19 @@ const CheckoutPage = () => {
                   </Button>
                   
                   <Button
-                    variant="primary"
+                    variant="success"
                     type="submit"
-                    disabled={loading || paymentLoading}
+                    disabled={loading}
+                    className="d-flex align-items-center gap-2"
                   >
-                    {loading || paymentLoading
-                      ? 'Processing...'
-                      : `Place Order - $${cart.total_price}`}
+                    {loading ? (
+                      'Processing...'
+                    ) : (
+                      <>
+                        <i className="fab fa-whatsapp"></i>
+                        Contact via WhatsApp - $${cart.total_price}
+                      </>
+                    )}
                   </Button>
                 </div>
               </Form>

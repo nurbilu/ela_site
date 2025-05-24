@@ -53,6 +53,45 @@ export const processPayment = createAsyncThunk(
   }
 );
 
+// Delete order (admin only)
+export const deleteOrder = createAsyncThunk(
+  'orders/deleteOrder',
+  async (orderId, { rejectWithValue }) => {
+    try {
+      await api.delete(`/api/orders/${orderId}/`);
+      return orderId;
+    } catch (error) {
+      return rejectWithValue(error.response?.data || 'Failed to delete order');
+    }
+  }
+);
+
+// Update order status (admin only)
+export const updateOrderStatus = createAsyncThunk(
+  'orders/updateOrderStatus',
+  async ({ orderId, status }, { rejectWithValue }) => {
+    try {
+      const response = await api.patch(`/api/orders/${orderId}/`, { status });
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data || 'Failed to update order status');
+    }
+  }
+);
+
+// Restore order (admin only - recreate a deleted order)
+export const restoreOrder = createAsyncThunk(
+  'orders/restoreOrder',
+  async (orderData, { rejectWithValue }) => {
+    try {
+      const response = await api.post('/api/orders/restore_order/', orderData);
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data || 'Failed to restore order');
+    }
+  }
+);
+
 const initialState = {
   orders: [],
   currentOrder: null,
@@ -151,6 +190,54 @@ const ordersSlice = createSlice({
         state.paymentLoading = false;
         state.paymentSuccess = false;
         state.paymentError = action.payload;
+      })
+      
+      // Delete order
+      .addCase(deleteOrder.pending, (state) => {
+        state.loading = true;
+      })
+      .addCase(deleteOrder.fulfilled, (state, action) => {
+        state.loading = false;
+        state.orders = state.orders.filter(order => order.id !== action.payload);
+        state.currentOrder = null;
+        state.error = null;
+      })
+      .addCase(deleteOrder.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+      
+      // Update order status
+      .addCase(updateOrderStatus.pending, (state) => {
+        state.loading = true;
+      })
+      .addCase(updateOrderStatus.fulfilled, (state, action) => {
+        state.loading = false;
+        // Update the order in the orders list
+        const index = state.orders.findIndex(order => order.id === action.payload.id);
+        if (index !== -1) {
+          state.orders[index] = action.payload;
+        }
+        state.currentOrder = action.payload;
+        state.error = null;
+      })
+      .addCase(updateOrderStatus.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+      
+      // Restore order
+      .addCase(restoreOrder.pending, (state) => {
+        state.loading = true;
+      })
+      .addCase(restoreOrder.fulfilled, (state, action) => {
+        state.loading = false;
+        state.orders.push(action.payload);
+        state.error = null;
+      })
+      .addCase(restoreOrder.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
       });
   },
 });

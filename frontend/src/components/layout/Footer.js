@@ -27,9 +27,9 @@ const Footer = () => {
           <Col md={3}>
             <h5>Contact</h5>
             <ul className="list-unstyled">
-              <li>Email: info@artgallery.com</li>
-              <li>Phone: +1 (555) 123-4567</li>
-              <li>Address: 123 Art St, City</li>
+              <li>Email: elalitayeb@gmail.com</li>
+              <li>Phone: +972 52 555 55 55</li>
+              <li>Address: 123 Art St, tel aviv</li>
             </ul>
           </Col>
         </Row>

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
-import { Container, Row, Col, Form, Button, Alert } from 'react-bootstrap';
+import { Container, Row, Col, Form, Button, Alert, InputGroup } from 'react-bootstrap';
 import { registerUser, clearError } from '../store/slices/authSlice';
 
 const RegisterPage = () => {
@@ -14,6 +14,8 @@ const RegisterPage = () => {
     last_name: ''
   });
   
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [validationErrors, setValidationErrors] = useState({});
   
   const { loading, error } = useSelector(state => state.auth);
@@ -165,15 +167,25 @@ const RegisterPage = () => {
               
               <Form.Group className="mb-3" controlId="password">
                 <Form.Label>Password*</Form.Label>
-                <Form.Control
-                  type="password"
-                  name="password"
-                  value={userData.password}
-                  onChange={handleChange}
-                  placeholder="Enter password"
-                  isInvalid={!!validationErrors.password}
-                  required
-                />
+                <InputGroup>
+                  <Form.Control
+                    type={showPassword ? "text" : "password"}
+                    name="password"
+                    value={userData.password}
+                    onChange={handleChange}
+                    placeholder="Enter password"
+                    isInvalid={!!validationErrors.password}
+                    required
+                  />
+                  <Button
+                    variant="outline-secondary"
+                    onClick={() => setShowPassword(!showPassword)}
+                    type="button"
+                    className="d-flex align-items-center"
+                  >
+                    <i className={`bi ${showPassword ? 'bi-eye-slash' : 'bi-eye'}`}></i>
+                  </Button>
+                </InputGroup>
                 <Form.Control.Feedback type="invalid">
                   {validationErrors.password}
                 </Form.Control.Feedback>
@@ -181,15 +193,25 @@ const RegisterPage = () => {
               
               <Form.Group className="mb-3" controlId="confirmPassword">
                 <Form.Label>Confirm Password*</Form.Label>
-                <Form.Control
-                  type="password"
-                  name="confirmPassword"
-                  value={userData.confirmPassword}
-                  onChange={handleChange}
-                  placeholder="Confirm password"
-                  isInvalid={!!validationErrors.confirmPassword}
-                  required
-                />
+                <InputGroup>
+                  <Form.Control
+                    type={showConfirmPassword ? "text" : "password"}
+                    name="confirmPassword"
+                    value={userData.confirmPassword}
+                    onChange={handleChange}
+                    placeholder="Confirm password"
+                    isInvalid={!!validationErrors.confirmPassword}
+                    required
+                  />
+                  <Button
+                    variant="outline-secondary"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    type="button"
+                    className="d-flex align-items-center"
+                  >
+                    <i className={`bi ${showConfirmPassword ? 'bi-eye-slash' : 'bi-eye'}`}></i>
+                  </Button>
+                </InputGroup>
                 <Form.Control.Feedback type="invalid">
                   {validationErrors.confirmPassword}
                 </Form.Control.Feedback>

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
-import { Container, Row, Col, Form, Button, Alert } from 'react-bootstrap';
+import { Container, Row, Col, Form, Button, Alert, InputGroup } from 'react-bootstrap';
 import { loginUser, clearError } from '../store/slices/authSlice';
 
 const LoginPage = () => {
@@ -9,6 +9,7 @@ const LoginPage = () => {
     username: '',
     password: ''
   });
+  const [showPassword, setShowPassword] = useState(false);
   
   const { loading, error } = useSelector(state => state.auth);
   const dispatch = useDispatch();
@@ -79,14 +80,24 @@ const LoginPage = () => {
               
               <Form.Group className="mb-3" controlId="password">
                 <Form.Label>Password</Form.Label>
-                <Form.Control
-                  type="password"
-                  name="password"
-                  value={credentials.password}
-                  onChange={handleChange}
-                  placeholder="Enter password"
-                  required
-                />
+                <InputGroup>
+                  <Form.Control
+                    type={showPassword ? "text" : "password"}
+                    name="password"
+                    value={credentials.password}
+                    onChange={handleChange}
+                    placeholder="Enter password"
+                    required
+                  />
+                  <Button
+                    variant="outline-secondary"
+                    onClick={() => setShowPassword(!showPassword)}
+                    type="button"
+                    className="d-flex align-items-center"
+                  >
+                    <i className={`bi ${showPassword ? 'bi-eye-slash' : 'bi-eye'}`}></i>
+                  </Button>
+                </InputGroup>
               </Form.Group>
               
               <Button

@@ -94,6 +94,7 @@ class Order(models.Model):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     payment_method = models.CharField(max_length=20, choices=PAYMENT_METHOD_CHOICES)
     payment_id = models.CharField(max_length=100, blank=True, null=True)
+    payment_details = models.JSONField(blank=True, null=True, help_text="Additional payment details (e.g. PayPal transaction data)")
     
     # Legacy address fields (for backwards compatibility with existing orders)
     shipping_address = models.TextField(blank=True, null=True)

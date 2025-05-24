@@ -164,4 +164,13 @@ CORS_ALLOW_HEADERS = [
 ]
 
 # Stripe API key
-STRIPE_API_KEY = os.environ.get('STRIPE_API_KEY', '') 
+STRIPE_API_KEY = os.environ.get('STRIPE_API_KEY', '')
+
+# PayPal settings
+PAYPAL_CLIENT_ID = os.environ.get('PAYPAL_CLIENT_ID', 'sb')  # Default to sandbox
+PAYPAL_CLIENT_SECRET = os.environ.get('PAYPAL_CLIENT_SECRET', '')  # For sandbox, can be empty
+PAYPAL_SANDBOX = os.environ.get('PAYPAL_SANDBOX', 'True') == 'True'  # True by default for testing
+
+# If True, PayPal API is not actually called but payments are simulated as successful
+# This is for development when you don't want to interact with the PayPal sandbox
+PAYPAL_SIMULATION_MODE = os.environ.get('PAYPAL_SIMULATION_MODE', 'True') == 'True' 

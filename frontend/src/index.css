@@ -55,4 +55,80 @@ h1, h2, h3, h4, h5, h6 {
 
 .mb-4 {
   margin-bottom: 1.5rem;
+}
+
+/* Payment details styling */
+.payment-details {
+  background-color: #f9f9f9;
+  border-radius: 8px;
+  padding: 16px;
+  margin-top: 16px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.payment-details h3 {
+  margin-top: 0;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 8px;
+}
+
+.payment-info {
+  margin-top: 12px;
+}
+
+.payment-id {
+  font-family: monospace;
+  background-color: #eee;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.9em;
+}
+
+.paypal-details {
+  margin-top: 8px;
+  padding: 8px;
+  background-color: #fff;
+  border: 1px solid #eee;
+  border-radius: 4px;
+}
+
+.paypal-details p {
+  margin: 4px 0;
+  font-size: 0.9em;
+}
+
+/* Order status styling */
+.order-status {
+  display: inline-block;
+  padding: 6px 12px;
+  border-radius: 16px;
+  font-weight: 500;
+  text-transform: uppercase;
+  font-size: 0.8em;
+  margin-left: 12px;
+}
+
+.status-pending {
+  background-color: #fff3cd;
+  color: #856404;
+}
+
+.status-paid {
+  background-color: #d4edda;
+  color: #155724;
+}
+
+.status-shipped {
+  background-color: #cce5ff;
+  color: #004085;
+}
+
+.status-delivered {
+  background-color: #d1e7dd;
+  color: #0f5132;
+}
+
+.status-cancelled {
+  background-color: #f8d7da;
+  color: #721c24;
 } 

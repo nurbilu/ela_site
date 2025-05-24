@@ -31,6 +31,37 @@ const OrderDetailPage = () => {
     return <div className="not-found">Order not found</div>;
   }
 
+  // Determine payment method details
+  const getPaymentMethodDetails = () => {
+    if (currentOrder.payment_method === 'credit_card') {
+      return (
+        <div className="payment-info">
+          <p>Paid with Credit Card</p>
+          {currentOrder.payment_id && (
+            <p className="payment-id">Transaction ID: {currentOrder.payment_id}</p>
+          )}
+        </div>
+      );
+    } else if (currentOrder.payment_method === 'paypal') {
+      return (
+        <div className="payment-info">
+          <p>Paid with PayPal</p>
+          {currentOrder.payment_id && (
+            <p className="payment-id">Transaction ID: {currentOrder.payment_id}</p>
+          )}
+          {currentOrder.payment_details && currentOrder.payment_details.paypalDetails && (
+            <div className="paypal-details">
+              <p>Payer ID: {currentOrder.payment_details.paypalDetails.payerID || 'N/A'}</p>
+              <p>PayPal Order ID: {currentOrder.payment_details.paypalDetails.orderID || 'N/A'}</p>
+            </div>
+          )}
+        </div>
+      );
+    }
+    
+    return <p>Payment Method: {currentOrder.payment_method || 'N/A'}</p>;
+  };
+
   return (
     <div className="order-detail-page container">
       <div className="page-header">
@@ -58,6 +89,15 @@ const OrderDetailPage = () => {
               {currentOrder.shippingAddress.zipCode || 'N/A'}
             </p>
             <p>{currentOrder.shippingAddress.country || 'N/A'}</p>
+          </div>
+        )}
+        {currentOrder.status === 'paid' && (
+          <div className="payment-details">
+            <h3>Payment Information</h3>
+            {getPaymentMethodDetails()}
+            {currentOrder.paid_at && (
+              <p>Paid on: {new Date(currentOrder.paid_at).toLocaleString()}</p>
+            )}
           </div>
         )}
       </div>

@@ -5,6 +5,7 @@ import { Provider } from 'react-redux';
 import { PersistGate } from 'redux-persist/integration/react';
 import { Elements } from '@stripe/react-stripe-js';
 import { loadStripe } from '@stripe/stripe-js';
+import { PayPalScriptProvider } from '@paypal/react-paypal-js';
 
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './index.css';
@@ -15,6 +16,13 @@ import reportWebVitals from './reportWebVitals';
 // Stripe public key from environment variable
 const stripePromise = loadStripe(process.env.REACT_APP_STRIPE_PUBLIC_KEY);
 
+// PayPal initialization options
+const paypalOptions = {
+  "client-id": process.env.REACT_APP_PAYPAL_CLIENT_ID || "sb", // Use sandbox client-id if not provided
+  currency: "USD",
+  intent: "capture"
+};
+
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
   <React.StrictMode>
@@ -22,7 +30,9 @@ root.render(
       <PersistGate loading={null} persistor={persistor}>
         <BrowserRouter>
           <Elements stripe={stripePromise}>
-            <App />
+            <PayPalScriptProvider options={paypalOptions}>
+              <App />
+            </PayPalScriptProvider>
           </Elements>
         </BrowserRouter>
       </PersistGate>

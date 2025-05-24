@@ -83,6 +83,12 @@ class OrderSerializer(serializers.ModelSerializer):
     shipping_address_structured = AddressSerializer(source='shipping_address_obj', read_only=True)
     billing_address_structured = AddressSerializer(source='billing_address_obj', read_only=True)
     
+    # User information fields
+    user_username = serializers.ReadOnlyField(source='user.username')
+    user_email = serializers.ReadOnlyField(source='user.email')
+    user_first_name = serializers.ReadOnlyField(source='user.first_name')
+    user_last_name = serializers.ReadOnlyField(source='user.last_name')
+    
     # Fields for creating an order
     shipping_address_data = serializers.JSONField(write_only=True, required=False)
     billing_address_data = serializers.JSONField(write_only=True, required=False)
@@ -90,14 +96,16 @@ class OrderSerializer(serializers.ModelSerializer):
     class Meta:
         model = Order
         fields = [
-            'id', 'user', 'order_number', 'status', 'payment_method', 'payment_id',
+            'id', 'user', 'user_username', 'user_email', 'user_first_name', 'user_last_name',
+            'order_number', 'status', 'payment_method', 'payment_id',
             'shipping_address', 'billing_address', 
             'shipping_address_structured', 'billing_address_structured',
             'shipping_address_data', 'billing_address_data',
             'total_price', 'created_at', 'paid_at', 'items'
         ]
         read_only_fields = ['order_number', 'created_at', 'paid_at', 
-                           'shipping_address_structured', 'billing_address_structured']
+                           'shipping_address_structured', 'billing_address_structured',
+                           'user_username', 'user_email', 'user_first_name', 'user_last_name']
 
 class MessageSerializer(serializers.ModelSerializer):
     """Serializer for Message model"""

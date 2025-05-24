@@ -184,16 +184,118 @@ class OrderViewSet(viewsets.ModelViewSet):
     serializer_class = OrderSerializer
     permission_classes = [IsAuthenticated]
     
+    def get_permissions(self):
+        """Set permissions based on action"""
+        if self.action in ['destroy', 'update', 'partial_update']:
+            # Only admins can delete or update orders
+            return [IsAdminUser()]
+        return [IsAuthenticated()]
+    
     def get_queryset(self):
-        return Order.objects.filter(user=self.request.user)
+        """Admins can see all orders, users can only see their own"""
+        if self.request.user.is_staff:
+            return Order.objects.all().order_by('-created_at')
+        return Order.objects.filter(user=self.request.user).order_by('-created_at')
+    
+    @action(detail=False, methods=['post'])
+    def checkout(self, request):
+        """Handle checkout process - create order and prepare for payment"""
+        data = request.data
+        user = request.user
+        
+        # Create addresses first
+        shipping_address_data = data.get('shipping_address_data')
+        billing_address_data = data.get('billing_address_data')
+        same_as_shipping = data.get('same_as_shipping', False)
+        
+        if same_as_shipping:
+            billing_address_data = shipping_address_data
+        
+        shipping_address = None
+        billing_address = None
+        
+        try:
+            # Create shipping address
+            shipping_address = Address.objects.create(
+                street=shipping_address_data.get('street', ''),
+                city=shipping_address_data.get('city', ''),
+                state=shipping_address_data.get('state', ''),
+                zipcode=shipping_address_data.get('zipcode', ''),
+                country=shipping_address_data.get('country', 'United States')
+            )
+            
+            # For backwards compatibility, also create a flat address string
+            shipping_address_str = f"{shipping_address_data.get('street', '')}, {shipping_address_data.get('city', '')}, {shipping_address_data.get('state', '')} {shipping_address_data.get('zipcode', '')}, {shipping_address_data.get('country', 'United States')}"
+            
+            # Create billing address if not same as shipping
+            if not same_as_shipping:
+                billing_address = Address.objects.create(
+                    street=billing_address_data.get('street', ''),
+                    city=billing_address_data.get('city', ''),
+                    state=billing_address_data.get('state', ''),
+                    zipcode=billing_address_data.get('zipcode', ''),
+                    country=billing_address_data.get('country', 'United States')
+                )
+                
+                # For backwards compatibility, also create a flat address string
+                billing_address_str = f"{billing_address_data.get('street', '')}, {billing_address_data.get('city', '')}, {billing_address_data.get('state', '')} {billing_address_data.get('zipcode', '')}, {billing_address_data.get('country', 'United States')}"
+            else:
+                billing_address = shipping_address
+                billing_address_str = shipping_address_str
+                
+            # Get or create user's cart
+            cart, created = Cart.objects.get_or_create(user=user)
+            
+            # Create order
+            order = Order.objects.create(
+                user=user,
+                shipping_address=shipping_address_str,
+                billing_address=billing_address_str,
+                shipping_address_obj=shipping_address,
+                billing_address_obj=billing_address,
+                payment_method=data.get('payment_method', 'credit_card'),
+                status='pending',
+                total_price=cart.total_price
+            )
+            
+            # Add cart items to the order
+            for cart_item in cart.cartitem_set.all():
+                OrderItem.objects.create(
+                    order=order,
+                    art_picture=cart_item.art_picture,
+                    price=cart_item.art_picture.price,
+                    quantity=cart_item.quantity
+                )
+            
+            # Clear the cart after creating order
+            cart.cartitem_set.all().delete()
+            
+            serializer = self.get_serializer(order)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+            
+        except Exception as e:
+            # Clean up any created objects if the order creation fails
+            if shipping_address:
+                shipping_address.delete()
+            if billing_address and billing_address != shipping_address:
+                billing_address.delete()
+            
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
     
     def create(self, request, *args, **kwargs):
         data = request.data
         user = request.user
         
+        # For admin restoration, use the specified user ID
+        if request.user.is_staff and 'user' in data:
+            try:
+                user = User.objects.get(id=data['user'])
+            except User.DoesNotExist:
+                return Response({'error': 'Specified user not found'}, status=status.HTTP_400_BAD_REQUEST)
+        
         # Create addresses first
-        shipping_address_data = data.get('shipping_address')
-        billing_address_data = data.get('billing_address')
+        shipping_address_data = data.get('shipping_address_data')
+        billing_address_data = data.get('billing_address_data')
         
         shipping_address = None
         billing_address = None
@@ -212,7 +314,7 @@ class OrderViewSet(viewsets.ModelViewSet):
             shipping_address_str = f"{shipping_address_data.get('street', '')}, {shipping_address_data.get('city', '')}, {shipping_address_data.get('state', '')} {shipping_address_data.get('zipcode', '')}, {shipping_address_data.get('country', 'United States')}"
         else:
             # Legacy format - just a string
-            shipping_address_str = shipping_address_data
+            shipping_address_str = data.get('shipping_address', '')
         
         if billing_address_data and isinstance(billing_address_data, dict):
             billing_address = Address.objects.create(
@@ -228,7 +330,7 @@ class OrderViewSet(viewsets.ModelViewSet):
             billing_address_str = f"{billing_address_data.get('street', '')}, {billing_address_data.get('city', '')}, {billing_address_data.get('state', '')} {billing_address_data.get('zipcode', '')}, {billing_address_data.get('country', 'United States')}"
         else:
             # Legacy format - just a string
-            billing_address_str = billing_address_data
+            billing_address_str = data.get('billing_address', '')
         
         # Create order with addresses
         try:
@@ -241,13 +343,14 @@ class OrderViewSet(viewsets.ModelViewSet):
                 payment_method=data.get('payment_method', 'credit_card'),
                 payment_id=data.get('payment_id', ''),
                 total_price=data.get('total_price', 0),
-                status='pending'
+                status=data.get('status', 'pending')
             )
             
             # Add items to the order
             for item_data in data.get('items', []):
                 art_picture_id = item_data.get('art_picture_id')
                 quantity = item_data.get('quantity', 1)
+                price = item_data.get('price')
                 
                 if art_picture_id:
                     try:
@@ -256,7 +359,7 @@ class OrderViewSet(viewsets.ModelViewSet):
                             order=order,
                             art_picture=art_picture,
                             quantity=quantity,
-                            price=art_picture.price
+                            price=price if price is not None else art_picture.price
                         )
                     except ArtPicture.DoesNotExist:
                         pass
@@ -311,15 +414,106 @@ class OrderViewSet(viewsets.ModelViewSet):
                 )
             
             elif payment_method == 'paypal':
-                # Here would be PayPal integration code
-                # For now, we'll simulate success
-                order.payment_id = 'paypal_' + token
-                order.mark_as_paid()
+                # Get PayPal details from request data
+                paypal_details = request.data.get('paypalDetails', {})
                 
-                return Response(
-                    {'success': 'Payment processed successfully'},
-                    status=status.HTTP_200_OK
-                )
+                # Check if we're in simulation mode
+                simulation_mode = getattr(settings, 'PAYPAL_SIMULATION_MODE', True)
+                
+                if simulation_mode:
+                    # In simulation mode, we accept all PayPal payments without verification
+                    print(f"PayPal SIMULATION MODE: Accepting payment without verification")
+                    print(f"Payment details: {paypal_details}")
+                    
+                    # Record payment details
+                    order.payment_id = f"paypal_simulated_{token}"
+                    order.payment_details = {
+                        **paypal_details,
+                        'simulated': True,
+                        'verification_skipped': True
+                    }
+                    order.mark_as_paid()
+                    
+                    return Response(
+                        {'success': 'PayPal payment simulated successfully'},
+                        status=status.HTTP_200_OK
+                    )
+                
+                # Real PayPal API integration for non-simulation mode
+                try:
+                    import requests
+                    
+                    # Get PayPal credentials from settings
+                    paypal_client_id = getattr(settings, 'PAYPAL_CLIENT_ID', 'sb')
+                    paypal_client_secret = getattr(settings, 'PAYPAL_CLIENT_SECRET', '')
+                    paypal_sandbox = getattr(settings, 'PAYPAL_SANDBOX', True)
+                    paypal_base_url = 'https://api-m.sandbox.paypal.com' if paypal_sandbox else 'https://api-m.paypal.com'
+                    
+                    # If client secret is provided, verify the payment with PayPal
+                    if paypal_client_secret:
+                        # Get access token from PayPal
+                        auth_response = requests.post(
+                            f'{paypal_base_url}/v1/oauth2/token',
+                            auth=(paypal_client_id, paypal_client_secret),
+                            data={'grant_type': 'client_credentials'},
+                            headers={
+                                'Accept': 'application/json',
+                                'Accept-Language': 'en_US'
+                            }
+                        )
+                        
+                        if auth_response.status_code != 200:
+                            print(f"PayPal auth error: {auth_response.text}")
+                            raise Exception("Failed to authenticate with PayPal")
+                            
+                        access_token = auth_response.json().get('access_token')
+                        
+                        # Verify the order with PayPal
+                        order_id = paypal_details.get('orderID')
+                        if not order_id:
+                            raise Exception("PayPal order ID not provided")
+                            
+                        order_response = requests.get(
+                            f'{paypal_base_url}/v2/checkout/orders/{order_id}',
+                            headers={
+                                'Content-Type': 'application/json',
+                                'Authorization': f'Bearer {access_token}'
+                            }
+                        )
+                        
+                        if order_response.status_code != 200:
+                            print(f"PayPal order verification error: {order_response.text}")
+                            raise Exception("Failed to verify PayPal order")
+                            
+                        payment_data = order_response.json()
+                        print(f"Received PayPal verification: {payment_data}")
+                        
+                        # Check if payment was successful - for sandbox we'll accept APPROVED too
+                        if payment_data.get('status') not in ['COMPLETED', 'APPROVED']:
+                            return Response(
+                                {'error': f"PayPal payment verification failed: {payment_data.get('status')}"},
+                                status=status.HTTP_400_BAD_REQUEST
+                            )
+                    else:
+                        # For sandbox testing without client secret, we'll accept all payments
+                        print(f"Sandbox mode without client secret: Accepting PayPal payment without verification")
+                    
+                    # Record payment details
+                    order.payment_id = f"paypal_{token}"
+                    order.payment_details = paypal_details
+                    order.mark_as_paid()
+                    
+                    return Response(
+                        {'success': 'PayPal payment processed successfully'},
+                        status=status.HTTP_200_OK
+                    )
+                    
+                except Exception as e:
+                    print(f"PayPal payment error: {str(e)}")
+                    return Response(
+                        {'error': f"PayPal payment error: {str(e)}"},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
             
             else:
                 return Response(
@@ -332,6 +526,18 @@ class OrderViewSet(viewsets.ModelViewSet):
                 {'error': str(e)},
                 status=status.HTTP_400_BAD_REQUEST
             )
+    
+    @action(detail=False, methods=['post'])
+    def restore_order(self, request):
+        """Restore a deleted order (admin only)"""
+        if not request.user.is_staff:
+            return Response(
+                {'error': 'Only administrators can restore orders'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        # Use the same create logic but with explicit restoration context
+        return self.create(request)
 
 class MessageViewSet(viewsets.ModelViewSet):
     """API endpoint for messages"""
