@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+import { Link } from 'react-router-dom';
 import { fetchOrders, deleteOrder, updateOrderStatus, restoreOrder } from '../../store/slices/ordersSlice';
 import './OrderManagementPage.css';
 
@@ -147,7 +148,8 @@ const OrderManagementPage = () => {
     if (orderToRestore) {
       try {
         // Remove the removedAt timestamp and prepare for restoration
-        const { removedAt, id, ...orderData } = orderToRestore;
+        // eslint-disable-next-line no-unused-vars
+        const { removedAt, id, ...restOrderData } = orderToRestore;
         
         // Create proper order data structure for backend
         const restoreData = {
@@ -342,6 +344,13 @@ const OrderManagementPage = () => {
       <div className="admin-header">
         <h1>Order Management</h1>
         <div className="admin-actions">
+          <Link 
+            to="/admin/orders-by-user" 
+            className="btn btn-success"
+            style={{ textDecoration: 'none', marginRight: '10px' }}
+          >
+            📊 Orders by User (DB View)
+          </Link>
           <button 
             className="btn btn-primary" 
             onClick={handleReloadOrders}

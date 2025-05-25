@@ -21,12 +21,17 @@ general :
 - [ ] - add a "forgot username" page . 
 - [ ] - add a "resend verification code" page . 
 
+
 for admin : 
-- [#] - add remove order button . 
-- [#] - add an undo action to the order page . 
-- [ ] - add a reload action to the order page . 
-- [ ] - add a print action to the order page . 
-- [ ] - add a download action to the order page . 
-- [ ] - add a copy action to the order page . 
+- [#] - create a admin/superuser management menu .
+- [x] - create a dashboard page . 
+- [#] - create a orders page . 
+- [#] - create a messages page - fix errors . 
+- [#] - create art pictures management page - fix errors . 
+- [ ] - remove admin/superuser my orders page . 
+
+
+
+
 
 

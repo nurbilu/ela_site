@@ -6,6 +6,7 @@ import authReducer from './slices/authSlice';
 import artPicturesReducer from './slices/artPicturesSlice';
 import cartReducer from './slices/cartSlice';
 import ordersReducer from './slices/ordersSlice';
+import orderUserViewReducer from './slices/orderUserViewSlice';
 import messagesReducer from './slices/messagesSlice';
 
 // Persist configuration
@@ -21,6 +22,7 @@ const rootReducer = combineReducers({
   artPictures: artPicturesReducer,
   cart: cartReducer,
   orders: ordersReducer,
+  orderUserView: orderUserViewReducer,
   messages: messagesReducer,
 });
 

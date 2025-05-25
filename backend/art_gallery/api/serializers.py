@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
-from .models import ArtPicture, Cart, CartItem, Order, OrderItem, Message, Address
+from .models import ArtPicture, Cart, CartItem, Order, OrderItem, Message, Address, OrderUserView
 
 class UserSerializer(serializers.ModelSerializer):
     """Serializer for User model"""
@@ -8,7 +8,11 @@ class UserSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'password']
+        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'password', 'is_staff', 'is_superuser']
+        extra_kwargs = {
+            'is_staff': {'read_only': True},
+            'is_superuser': {'read_only': True},
+        }
         
     def create(self, validated_data):
         user = User.objects.create_user(
@@ -118,4 +122,17 @@ class MessageSerializer(serializers.ModelSerializer):
             'id', 'sender', 'sender_username', 'recipient', 'recipient_username', 
             'subject', 'content', 'message_type', 'is_read', 'created_at'
         ]
-        read_only_fields = ['sender', 'created_at'] 
+        read_only_fields = ['sender', 'created_at']
+
+
+class OrderUserViewSerializer(serializers.ModelSerializer):
+    """Serializer for OrderUserView - combines order and user data from database view"""
+    
+    class Meta:
+        model = OrderUserView
+        fields = [
+            'id', 'order_number', 'status', 'payment_method', 'payment_id', 'payment_details',
+            'shipping_address', 'billing_address', 'shipping_address_obj_id', 'billing_address_obj_id',
+            'total_price', 'created_at', 'paid_at', 'user_id', 
+            'username', 'email', 'first_name', 'last_name', 'display_name'
+        ]

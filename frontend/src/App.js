@@ -15,6 +15,7 @@ import RegisterPage from './pages/RegisterPage';
 import DashboardPage from './pages/admin/DashboardPage';
 import ArtPictureManagementPage from './pages/admin/ArtPictureManagementPage';
 import OrderManagementPage from './pages/admin/OrderManagementPage';
+import OrdersByUserPage from './pages/admin/OrdersByUserPage';
 import MessageManagementPage from './pages/admin/MessageManagementPage';
 import NotFoundPage from './pages/NotFoundPage';
 import Layout from './components/layout/Layout';
@@ -95,6 +96,11 @@ function App() {
         <Route path="admin/orders" element={
           <AdminRoute>
             <OrderManagementPage />
+          </AdminRoute>
+        } />
+        <Route path="admin/orders-by-user" element={
+          <AdminRoute>
+            <OrdersByUserPage />
           </AdminRoute>
         } />
         <Route path="admin/messages" element={

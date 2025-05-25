@@ -9,24 +9,31 @@ from django.db import transaction
 import stripe
 from django.conf import settings
 
-from .models import ArtPicture, Cart, CartItem, Order, OrderItem, Message, Address
+from .models import ArtPicture, Cart, CartItem, Order, OrderItem, Message, Address, OrderUserView
 from .serializers import (
     UserSerializer, ArtPictureSerializer, CartSerializer, CartItemSerializer,
-    OrderSerializer, OrderItemSerializer, MessageSerializer
+    OrderSerializer, OrderItemSerializer, MessageSerializer, OrderUserViewSerializer
 )
 
 # Configure Stripe API key
 stripe.api_key = settings.STRIPE_API_KEY
 
+class IsAdminOrSuperuser(permissions.BasePermission):
+    """
+    Custom permission to only allow admins/superusers access.
+    """
+    def has_permission(self, request, view):
+        return request.user and (request.user.is_staff or request.user.is_superuser)
+
 class IsAdminOrReadOnly(permissions.BasePermission):
     """
-    Custom permission to only allow admins to edit objects,
+    Custom permission to only allow admins/superusers to edit objects,
     but allow anyone to view them.
     """
     def has_permission(self, request, view):
         if request.method in permissions.SAFE_METHODS:
             return True
-        return request.user and request.user.is_staff
+        return request.user and (request.user.is_staff or request.user.is_superuser)
 
 class UserViewSet(viewsets.ModelViewSet):
     """API endpoint for users"""
@@ -41,7 +48,7 @@ class UserViewSet(viewsets.ModelViewSet):
         return [IsAdminUser()]
     
     def get_queryset(self):
-        if self.request.user.is_staff:
+        if self.request.user.is_staff or self.request.user.is_superuser:
             return User.objects.all()
         if self.request.user.is_authenticated:
             return User.objects.filter(id=self.request.user.id)
@@ -70,7 +77,7 @@ class ArtPictureViewSet(viewsets.ModelViewSet):
     
     def get_queryset(self):
         queryset = ArtPicture.objects.all()
-        if not self.request.user.is_staff:
+        if not (self.request.user.is_staff or self.request.user.is_superuser):
             queryset = queryset.filter(is_available=True)
         return queryset
     
@@ -187,13 +194,13 @@ class OrderViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         """Set permissions based on action"""
         if self.action in ['destroy', 'update', 'partial_update']:
-            # Only admins can delete or update orders
+            # Only admins/superusers can delete or update orders
             return [IsAdminUser()]
         return [IsAuthenticated()]
     
     def get_queryset(self):
-        """Admins can see all orders, users can only see their own"""
-        if self.request.user.is_staff:
+        """Admins/superusers can see all orders, users can only see their own"""
+        if self.request.user.is_staff or self.request.user.is_superuser:
             return Order.objects.all().order_by('-created_at')
         return Order.objects.filter(user=self.request.user).order_by('-created_at')
     
@@ -286,8 +293,8 @@ class OrderViewSet(viewsets.ModelViewSet):
         data = request.data
         user = request.user
         
-        # For admin restoration, use the specified user ID
-        if request.user.is_staff and 'user' in data:
+        # For admin/superuser restoration, use the specified user ID
+        if (request.user.is_staff or request.user.is_superuser) and 'user' in data:
             try:
                 user = User.objects.get(id=data['user'])
             except User.DoesNotExist:
@@ -529,10 +536,10 @@ class OrderViewSet(viewsets.ModelViewSet):
     
     @action(detail=False, methods=['post'])
     def restore_order(self, request):
-        """Restore a deleted order (admin only)"""
-        if not request.user.is_staff:
+        """Restore a deleted order (admin/superuser only)"""
+        if not (request.user.is_staff or request.user.is_superuser):
             return Response(
-                {'error': 'Only administrators can restore orders'},
+                {'error': 'Only administrators/superusers can restore orders'},
                 status=status.HTTP_403_FORBIDDEN
             )
         
@@ -547,13 +554,13 @@ class MessageViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         """Set custom permissions for different actions"""
         if self.action in ['create', 'send_public_message']:
-            return [IsAdminUser()]
+            return [IsAdminUser()]  # Admins/superusers only
         return [IsAuthenticated()]
     
     def get_queryset(self):
         user = self.request.user
-        if user.is_staff:
-            # Admin can see all messages they sent, all public messages, and all user-to-admin messages
+        if user.is_staff or user.is_superuser:
+            # Admin/superuser can see all messages they sent, all public messages, and all user-to-admin messages
             return Message.objects.filter(
                 sender=user
             ) | Message.objects.filter(
@@ -574,17 +581,17 @@ class MessageViewSet(viewsets.ModelViewSet):
             )
     
     def perform_create(self, serializer):
-        """Ensure only admins can create messages directly"""
-        if not self.request.user.is_staff:
-            raise PermissionDenied("Only administrators can create messages")
+        """Ensure only admins/superusers can create messages directly"""
+        if not (self.request.user.is_staff or self.request.user.is_superuser):
+            raise PermissionDenied("Only administrators/superusers can create messages")
         serializer.save(sender=self.request.user)
     
     @action(detail=False, methods=['post'])
     def send_public_message(self, request):
-        """Send a message to all users (admin only)"""
-        if not request.user.is_staff:
+        """Send a message to all users (admin/superuser only)"""
+        if not (request.user.is_staff or request.user.is_superuser):
             return Response(
-                {'error': 'Only admin can send public messages'},
+                {'error': 'Only admin/superuser can send public messages'},
                 status=status.HTTP_403_FORBIDDEN
             )
         
@@ -650,7 +657,7 @@ class MessageViewSet(viewsets.ModelViewSet):
         message = self.get_object()
         
         # Only recipient can mark message as read
-        if message.recipient != request.user and not request.user.is_staff:
+        if message.recipient != request.user and not (request.user.is_staff or request.user.is_superuser):
             return Response(
                 {'error': 'You cannot mark this message as read'},
                 status=status.HTTP_403_FORBIDDEN
@@ -660,4 +667,53 @@ class MessageViewSet(viewsets.ModelViewSet):
         message.save()
         
         serializer = MessageSerializer(message)
-        return Response(serializer.data) 
+        return Response(serializer.data)
+
+
+class OrderUserViewSet(viewsets.ReadOnlyModelViewSet):
+    """API endpoint for order user view - read-only access to orders with user info"""
+    queryset = OrderUserView.objects.all()
+    serializer_class = OrderUserViewSerializer
+    permission_classes = [IsAdminOrSuperuser]  # Only admins/superusers can access this view
+    
+    def get_queryset(self):
+        """Return orders grouped by username"""
+        return OrderUserView.objects.all().order_by('username', '-created_at')
+    
+    @action(detail=False, methods=['get'])
+    def grouped_by_user(self, request):
+        """Get orders grouped by username"""
+        orders = self.get_queryset()
+        
+        # Group orders by username
+        grouped_orders = {}
+        for order in orders:
+            username = order.username
+            if username not in grouped_orders:
+                grouped_orders[username] = {
+                    'user_info': {
+                        'user_id': order.user_id,
+                        'username': order.username,
+                        'email': order.email,
+                        'first_name': order.first_name,
+                        'last_name': order.last_name,
+                        'display_name': order.display_name
+                    },
+                    'orders': []
+                }
+            
+            # Add order to user's group
+            order_data = OrderUserViewSerializer(order).data
+            grouped_orders[username]['orders'].append(order_data)
+        
+        # Convert to list format for easier frontend consumption
+        result = []
+        for username, data in grouped_orders.items():
+            result.append({
+                'username': username,
+                'user_info': data['user_info'],
+                'orders': data['orders'],
+                'order_count': len(data['orders'])
+            })
+        
+        return Response(result)

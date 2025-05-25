@@ -104,7 +104,7 @@ const authSlice = createSlice({
         state.loading = false;
         state.user = action.payload;
         state.isAuthenticated = true;
-        state.isAdmin = action.payload.is_staff;
+        state.isAdmin = action.payload.is_staff || action.payload.is_superuser;
         state.error = null;
       })
       .addCase(checkAuthStatus.rejected, (state, action) => {
@@ -123,7 +123,7 @@ const authSlice = createSlice({
         state.loading = false;
         state.user = action.payload;
         state.isAuthenticated = true;
-        state.isAdmin = action.payload.is_staff;
+        state.isAdmin = action.payload.is_staff || action.payload.is_superuser;
         state.error = null;
       })
       .addCase(loginUser.rejected, (state, action) => {

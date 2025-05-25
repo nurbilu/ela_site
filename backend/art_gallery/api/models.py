@@ -156,4 +156,35 @@ class Message(models.Model):
         return f"Message from {self.sender.username} to {self.recipient.username}: {self.subject}"
     
     class Meta:
-        ordering = ['-created_at'] 
+        ordering = ['-created_at']
+
+
+class OrderUserView(models.Model):
+    """Database view that joins orders with user information"""
+    id = models.BigAutoField(primary_key=True)
+    order_number = models.UUIDField()
+    status = models.CharField(max_length=20)
+    payment_method = models.CharField(max_length=20)
+    payment_id = models.CharField(max_length=100, blank=True, null=True)
+    payment_details = models.JSONField(blank=True, null=True)
+    shipping_address = models.TextField(blank=True, null=True)
+    billing_address = models.TextField(blank=True, null=True)
+    shipping_address_obj_id = models.IntegerField(null=True)
+    billing_address_obj_id = models.IntegerField(null=True)
+    total_price = models.DecimalField(max_digits=10, decimal_places=2)
+    created_at = models.DateTimeField()
+    paid_at = models.DateTimeField(null=True, blank=True)
+    user_id = models.IntegerField()
+    username = models.CharField(max_length=150)
+    email = models.EmailField(blank=True)
+    first_name = models.CharField(max_length=150, blank=True)
+    last_name = models.CharField(max_length=150, blank=True)
+    display_name = models.CharField(max_length=301)  # first_name + ' ' + last_name or username
+    
+    class Meta:
+        managed = False  # This tells Django not to manage this table (it's a view)
+        db_table = 'api_order_user_view'
+        ordering = ['username', '-created_at']
+    
+    def __str__(self):
+        return f"Order {self.order_number} - {self.display_name}"

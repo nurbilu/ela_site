@@ -98,7 +98,7 @@ const Header = () => {
               
               {isAdmin && (
                 <NavDropdown 
-                  title="Admin" 
+                  title="Admin/Superuser" 
                   id="admin-dropdown"
                   active={['/admin/dashboard', '/admin/art-pictures', '/admin/orders', '/admin/messages'].some(path => location.pathname.startsWith(path))}
                 >
